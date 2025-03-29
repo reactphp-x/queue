@@ -1,0 +1,20 @@
+{
+    "name": "reactphp-x/queue",
+    "description": "A queue implementation for ReactPHP using Redis",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "wpjscc",
+            "email": "wpjscc@gmail.com"
+        }
+    ],
+    "require": {
+        "wpjscc/redis-react": "^3.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "ReactphpX\\Queue\\": "src/"
+        }
+    }
+}
