@@ -4,7 +4,7 @@ namespace ReactphpX\Queue;
 
 use Clue\React\Redis\RedisClient;
 
-class Queue
+class Queue implements QueueInterface
 {
     private $redis;
     private $prefix = '';
