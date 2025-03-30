@@ -11,7 +11,8 @@
     ],
     "require": {
         "wpjscc/redis-react": "^3.0",
-        "reactphp-x/serializable-closure": "^1.0"
+        "reactphp-x/serializable-closure": "^1.0",
+        "reactphp-x/process-manager": "^1.0"
     },
     "autoload": {
         "psr-4": {

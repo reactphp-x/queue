@@ -21,7 +21,7 @@ class Consumer
     private $consumedCount = [];
     private $checkHighPriorityAfter = 10;
 
-    public function __construct(QueueInterface $queue, array $priorityQueues = ['high', 'middle', 'low', 'default'], int $maxAttempts = 3, int $interval = 1000, int $consumerCount = 2)
+    public function __construct(QueueInterface $queue, array $priorityQueues = ['high', 'middle', 'low', 'default'], int $maxAttempts = 1, int $interval = 1000, int $consumerCount = 2)
     {
         $this->queue = $queue;
         $this->priorityQueues = $priorityQueues;

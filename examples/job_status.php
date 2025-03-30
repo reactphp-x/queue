@@ -18,14 +18,15 @@ $redis = new RedisClient('redis://127.0.0.1:6379');
 $queue = new Queue($redis);
 $consumer = new Consumer($queue);
 $jobManager = new JobManager($redis, $queue);
-
+$jobManager->initProcess(1,1);
+$jobManager->clearJobs();
 // 注册消费者
 $consumer->consume(function ($data) use ($jobManager) {
     echo "Received job: $data\n";
     return $jobManager->processJob($data);
 });
 
-// 示例：推送一些任务到队列
+// // 示例：推送一些任务到队列
 for ($i = 1; $i <= 3; $i++) {
     $jobId = "job-$i";
     $jobManager->pushJob($jobId, function () use ($i) {
@@ -55,7 +56,7 @@ $timer = Loop::addPeriodicTimer(2, function () use ($jobManager) {
 
 // 5秒后停止状态查询
 Loop::addTimer(5, function () use ($timer) {
-    Loop::cancelTimer($timer);
+    // Loop::cancelTimer($timer);
     echo "\nDemo completed\n";
 });
 
