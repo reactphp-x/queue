@@ -20,15 +20,15 @@ class Queue implements QueueInterface
         return $this->prefix ? $this->prefix . ':' . $queueName : $queueName;
     }
 
-    public function enqueue($data, string $queueName = 'default')
+    public function enqueue(string $data, string $queueName = 'default')
     {
-        return $this->redis->rpush($this->getQueueName($queueName), json_encode($data));
+        return $this->redis->rpush($this->getQueueName($queueName), $data);
     }
 
     public function dequeue(string $queueName = 'default')
     {
         return $this->redis->lpop($this->getQueueName($queueName))->then(function ($data) {
-            return $data ? json_decode($data, true) : null;
+            return $data ? $data : null;
         });
     }
 

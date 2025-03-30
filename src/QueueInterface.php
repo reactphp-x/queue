@@ -10,7 +10,7 @@ interface QueueInterface
      * @param string $queueName
      * @return mixed
      */
-    public function enqueue($data, string $queueName = 'default');
+    public function enqueue(string $data, string $queueName = 'default');
 
     /**
      * Remove and return an item from the queue

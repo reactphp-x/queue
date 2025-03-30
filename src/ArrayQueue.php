@@ -12,7 +12,7 @@ class ArrayQueue implements QueueInterface
     private $queues = [];
     private $waitingConsumers = [];
 
-    public function enqueue($data, string $queueName = 'default'): PromiseInterface
+    public function enqueue(string $data, string $queueName = 'default'): PromiseInterface
     {
         if (!isset($this->queues[$queueName])) {
             $this->queues[$queueName] = [];
