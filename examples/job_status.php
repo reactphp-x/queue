@@ -11,15 +11,17 @@ use function React\Async\async;
 
 // 创建Redis客户端
 use Clue\React\Redis\RedisClient;
+use ReactphpX\Queue\Storage\RedisStorageDriver;
 
 $redis = new RedisClient('redis://127.0.0.1:6379');
 
 // 创建队列和任务管理器
 $queue = new Queue($redis);
 $consumer = new Consumer($queue);
-$jobManager = new JobManager($redis, $queue);
+$storage = new RedisStorageDriver($redis);
+$jobManager = new JobManager($storage, $queue);
 $jobManager->initProcess(1,1);
-$jobManager->clearJobs();
+// $jobManager->clearJobs();
 // 注册消费者
 $consumer->consume(function ($data) use ($jobManager) {
     echo "Received job: $data\n";
@@ -34,7 +36,7 @@ for ($i = 1; $i <= 3; $i++) {
             throw new \Exception("Job $i failed");
         }
         return "Job $i completed successfully";
-    }, 'default')->then(function ($result) use ($jobId) {
+    }, 'default', true)->then(function ($result) use ($jobId) {
         var_dump($result); // 输出任务结果
     });
 }

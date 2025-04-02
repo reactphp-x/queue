@@ -2,15 +2,14 @@
 
 namespace ReactphpX\Queue;
 
-use Clue\React\Redis\RedisClient;
 use ReactphpX\SerializableClosure\SerializableClosure;
 use ReactphpX\ProcessManager\ProcessManager;
 use React\Promise\Deferred;
+use ReactphpX\Queue\Storage\StorageDriverInterface;
 
 class JobManager {
-    private $redis;
+    private $storage;
     private $queue;
-    private $jobKeyPrefix;
     private $processManager;
 
     const STATUS_CREATED = 'created';
@@ -18,10 +17,9 @@ class JobManager {
     const STATUS_COMPLETED = 'completed';
     const STATUS_FAILED = 'failed';
 
-    public function __construct(RedisClient $redis, Queue $queue, string $jobKeyPrefix = 'job:') {
-        $this->redis = $redis;
+    public function __construct(StorageDriverInterface $storage, Queue $queue) {
+        $this->storage = $storage;
         $this->queue = $queue;
-        $this->jobKeyPrefix = $jobKeyPrefix;
     }
 
     public function initProcess($min, $max)
@@ -54,7 +52,11 @@ class JobManager {
         $serializedClosure = SerializableClosure::serialize($closure);
         
         // 存储任务状态
-        return $this->redis->hMSet($this->jobKeyPrefix . $jobId, "status", self::STATUS_CREATED, "created_at", (string)time())
+        return $this->storage->setJobStatus($jobId, [
+                "status" => self::STATUS_CREATED,
+                "created_at" => (string)time(),
+                "use_process" => $useProcess ? "1" : "0"
+            ])
             ->then(function () use ($jobId, $serializedClosure, $queueName, $useProcess) {
                 // 推送到队列，将数组序列化为JSON字符串
                 return $this->queue->enqueue(json_encode([
@@ -85,28 +87,11 @@ class JobManager {
     }
 
     public function getJobStatus($jobId) {
-        return $this->redis->hGetAll($this->jobKeyPrefix . $jobId)->then(function ($data) {
-            // 将数组转换为关联数组
-            $result = [];
-            for ($i = 0; $i < count($data); $i += 2) {
-                $result[$data[$i]] = $data[$i + 1];
-            }
-            return $result;
-        });
+        return $this->storage->getJobStatus($jobId);
     }
 
     public function getAllJobs($offset = 0, $limit = 10) {
-        return $this->redis->keys($this->jobKeyPrefix . '*')
-            ->then(function ($keys) use ($offset, $limit) {
-                // 对任务ID进行分页
-                $keys = array_slice($keys, $offset, $limit);
-                $promises = [];
-                foreach ($keys as $key) {
-                    $jobId = str_replace($this->jobKeyPrefix, '', $key);
-                    $promises[$jobId] = $this->getJobStatus($jobId);
-                }
-                return \React\Promise\all($promises);
-            });
+        return $this->storage->getAllJobs($offset, $limit);
     }
 
     public function processJob($data) {
@@ -124,13 +109,13 @@ class JobManager {
         ];
 
         // 更新任务状态为处理中
-        return $this->redis->hMSet($this->jobKeyPrefix . $jobId, 
-            "status", self::STATUS_PENDING, 
-            "started_at", (string)time(),
-            "attempts", (string)$retryInfo['attempts'],
-            "first_attempt", (string)$retryInfo['first_attempt'],
-            "last_attempt", (string)$retryInfo['last_attempt']
-        )
+        return $this->storage->setJobStatus($jobId, [
+            "status" => self::STATUS_PENDING,
+            "started_at" => (string)time(),
+            "attempts" => (string)$retryInfo['attempts'],
+            "first_attempt" => (string)$retryInfo['first_attempt'],
+            "last_attempt" => (string)$retryInfo['last_attempt']
+        ])
             ->then(function () use ($closure, $jobId, $useProcess) {
                 try {
                     // 执行任务
@@ -138,28 +123,28 @@ class JobManager {
                         // 如果结果是数组，转换为JSON字符串
                         $resultStr = is_array($result) ? json_encode($result) : (string)$result;
                         // 更新任务状态为完成，并存储结果
-                        return $this->redis->hMSet($this->jobKeyPrefix . $jobId, 
-                            "status", self::STATUS_COMPLETED, 
-                            "completed_at", (string)time(),
-                            "result", $resultStr
-                        );
+                        return $this->storage->setJobStatus($jobId, [
+                            "status" => self::STATUS_COMPLETED,
+                            "completed_at" => (string)time(),
+                            "result" => $resultStr
+                        ]);
                     }, function ($error) use ($jobId){
                         // 更新任务状态为失败
-                        return $this->redis->hMSet($this->jobKeyPrefix . $jobId, 
-                            "status", self::STATUS_FAILED, 
-                            "failed_at", (string)time(), 
-                            "error", $error->getMessage()
-                        )->then(function () use ($error) {
+                        return $this->storage->setJobStatus($jobId, [
+                            "status" => self::STATUS_FAILED,
+                            "failed_at" => (string)time(),
+                            "error" => $error->getMessage()
+                        ])->then(function () use ($error) {
                             return \React\Promise\reject($error);
                         });
                     });
                 } catch (\Exception $e) {
                     // 更新任务状态为失败
-                    return $this->redis->hMSet($this->jobKeyPrefix . $jobId, 
-                        "status", self::STATUS_FAILED, 
-                        "failed_at", (string)time(), 
-                        "error", $e->getMessage()
-                    )->then(function () use ($e) {
+                    return $this->storage->setJobStatus($jobId, [
+                        "status" => self::STATUS_FAILED,
+                        "failed_at" => (string)time(),
+                        "error" => $e->getMessage()
+                    ])->then(function () use ($e) {
                         return \React\Promise\reject($e);
                     });
                 }
@@ -205,13 +190,6 @@ class JobManager {
     }
 
     public function clearJobs() {
-        return $this->redis->keys($this->jobKeyPrefix. '*')
-            ->then(function ($keys) {
-                $promises = [];
-                foreach ($keys as $key) {
-                    $promises[] = $this->redis->del($key);
-                }
-                return \React\Promise\all($promises);
-            });
+        return $this->storage->clearJobs();
     }
 }
