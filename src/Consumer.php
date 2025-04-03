@@ -131,7 +131,7 @@ class Consumer
                 $this->consumedCount[$queueName] = 0; // 重置当前队列的计数
                 
                 return $this->queue->dequeue($this->priorityQueues[$prevIndex])->then(
-                    function ($data) use ($index, $prevIndex, $dequeueNext) {
+                    function ($data) use ($index, $prevIndex, $dequeueNext, $queueName) {
                         if ($data !== null) {
                             $this->consumedCount[$this->priorityQueues[$prevIndex]]++;
                             $this->currentQueueIndex = $prevIndex; // 更新当前队列索引
