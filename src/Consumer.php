@@ -2,10 +2,6 @@
 
 namespace ReactphpX\Queue;
 
-use Clue\React\Redis\RedisClient;
-use React\Promise\PromiseInterface;
-use ReactphpX\TaskPoller\TaskPoller;
-use ReactphpX\TaskPoller\TaskPollerManager;
 
 class Consumer
 {
@@ -13,14 +9,13 @@ class Consumer
     private $priorityQueues;
     private $running = false;
     private $callback;
-    private $poller;
     private $maxAttempts = 3;
     private $consumerCount = 2;
     private $currentQueueIndex = 0;
     private $consumedCount = [];
     private $checkHighPriorityAfter = 10;
 
-    public function __construct(QueueInterface $queue, array $priorityQueues = ['high', 'middle', 'low', 'default'], int $maxAttempts = 1, int $consumerCount = 2)
+    public function __construct(QueueInterface $queue, array $priorityQueues = ['high', 'middle', 'low', 'default'], int $maxAttempts = 1, int $consumerCount = 1)
     {
         $this->queue = $queue;
         $this->priorityQueues = $priorityQueues;
