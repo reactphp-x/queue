@@ -126,7 +126,7 @@ class Consumer
             $queueName = $this->priorityQueues[$index];
             
             // 如果当前队列消费次数达到10次，且不是最高优先级队列，检查前一个优先级队列
-            if ($index > 0 && $this->consumedCount[$queueName] >= 10) {
+            if ($index > 0 && $this->consumedCount[$queueName] >= $this->checkHighPriorityAfter) {
                 $prevIndex = $this->getPreviousQueueIndex($index);
                 $this->consumedCount[$queueName] = 0; // 重置当前队列的计数
                 
