@@ -15,18 +15,16 @@ class Consumer
     private $callback;
     private $poller;
     private $maxAttempts = 3;
-    private $interval = 1000;
     private $consumerCount = 2;
     private $currentQueueIndex = 0;
     private $consumedCount = [];
     private $checkHighPriorityAfter = 10;
 
-    public function __construct(QueueInterface $queue, array $priorityQueues = ['high', 'middle', 'low', 'default'], int $maxAttempts = 1, int $interval = 1000, int $consumerCount = 2)
+    public function __construct(QueueInterface $queue, array $priorityQueues = ['high', 'middle', 'low', 'default'], int $maxAttempts = 1, int $consumerCount = 2)
     {
         $this->queue = $queue;
         $this->priorityQueues = $priorityQueues;
         $this->maxAttempts = $maxAttempts;
-        $this->interval = $interval;
         $this->consumerCount = $consumerCount;
     }
 

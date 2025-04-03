@@ -17,16 +17,18 @@ $redis = new RedisClient('redis://127.0.0.1:6379');
 
 // 创建队列和任务管理器
 $queue = new Queue($redis);
-$consumer = new Consumer($queue);
 $storage = new RedisStorageDriver($redis);
 $jobManager = new JobManager($storage, $queue);
 $jobManager->initProcess(1,1);
 // $jobManager->clearJobs();
+$jobManager->startConsume();
+
 // 注册消费者
-$consumer->consume(function ($data) use ($jobManager) {
-    echo "Received job: $data\n";
-    return $jobManager->processJob($data);
-});
+// $consumer = new Consumer($queue);
+// $consumer->consume(function ($data) use ($jobManager) {
+//     echo "Received job: $data\n";
+//     return $jobManager->processJob($data);
+// });
 
 // // 示例：推送一些任务到队列
 for ($i = 1; $i <= 3; $i++) {

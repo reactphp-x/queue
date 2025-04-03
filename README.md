@@ -1,13 +1,16 @@
 # ReactPHP Queue
 
-基于 Redis 的异步队列实现，使用 ReactPHP 构建。
+基于 ReactPHP 和 Redis 实现的异步队列系统，提供轻量级、高性能的消息队列解决方案。
 
 ## 特性
 
 - 基于 Redis 实现的轻量级队列
-- 支持异步操作
-- 支持多队列
-- 支持阻塞式出队
+- 支持异步操作和非阻塞式处理
+- 支持多队列和优先级队列
+- 提供阻塞式出队操作
+- 内置任务状态管理
+- 支持多工作进程处理
+- 支持内存队列（ArrayQueue）
 - 支持队列前缀配置
 
 ## 安装
@@ -16,81 +19,125 @@
 composer require reactphp-x/queue
 ```
 
-## 基本用法
+## 基础使用
 
-### 初始化队列
+### 创建队列实例
 
 ```php
+use React\EventLoop\Loop;
 use Clue\React\Redis\RedisClient;
 use ReactphpX\Queue\Queue;
 
-$redis = new RedisClient('redis://localhost:6379');
-$queue = new Queue($redis, 'myapp'); // 第二个参数为队列前缀，可选
+$loop = Loop::get();
+$redis = new RedisClient('redis://127.0.0.1:6379');
+$queue = new Queue($redis, 'example');
 ```
 
-### 入队操作
+### 基本队列操作
 
 ```php
-// 向默认队列添加数据
-$queue->enqueue(['job' => 'task1', 'data' => 'some data']);
+// 入队操作
+$queue->enqueue(['task' => 'task1', 'data' => 'some data'])->then(function () {
+    echo "Task1 入队成功\n";
+});
 
-// 向指定队列添加数据
-$queue->enqueue(['job' => 'task2', 'data' => 'other data'], 'high-priority');
-```
+// 获取队列大小
+$queue->size()->then(function ($size) {
+    echo "当前队列大小: {$size}\n";
+});
 
-### 出队操作
-
-```php
-// 从默认队列中取出数据（非阻塞）
+// 出队操作
 $queue->dequeue()->then(function ($data) {
-    if ($data === null) {
-        echo "队列为空\n";
-        return;
-    }
-    echo "获取到数据：" . json_encode($data, JSON_UNESCAPED_UNICODE) . "\n";
+    echo "出队数据: " . json_encode($data, JSON_UNESCAPED_UNICODE) . "\n";
 });
 
-// 从指定队列中取出数据（非阻塞）
-$queue->dequeue('high-priority')->then(function ($data) {
-    // 处理数据
-});
-```
-
-### 阻塞式出队
-
-```php
-// 阻塞等待数据（默认永久等待）
-$queue->blockingDequeue()->then(function ($data) {
-    // 处理数据
-});
-
-// 设置超时时间（单位：秒）
+// 阻塞式出队（等待5秒）
 $queue->blockingDequeue(5)->then(function ($data) {
-    if ($data === null) {
-        echo "等待超时\n";
-        return;
+    if ($data) {
+        echo "获取到数据: " . json_encode($data, JSON_UNESCAPED_UNICODE) . "\n";
+    } else {
+        echo "等待超时，没有数据\n";
     }
-    // 处理数据
 });
 ```
 
-### 队列管理
+## 高级特性
+
+### 多队列支持
+
+支持创建多个优先级队列，实现任务优先级处理：
 
 ```php
-// 获取队列长度
-$queue->size()->then(function ($length) {
-    echo "队列长度：$length\n";
-});
+// 向不同优先级的队列添加任务
+$queue->enqueue($task, 'high');
+$queue->enqueue($task, 'medium');
+$queue->enqueue($task, 'low');
 
-// 清空队列
-$queue->clear()->then(function () {
-    echo "队列已清空\n";
+// 按优先级处理任务
+$queue->dequeue('high');
+$queue->dequeue('medium');
+$queue->dequeue('low');
+```
+
+### 任务状态管理
+
+使用 JobManager 管理任务状态和执行：
+
+```php
+use ReactphpX\Queue\JobManager;
+use ReactphpX\Queue\Storage\RedisStorageDriver;
+
+$storage = new RedisStorageDriver($redis);
+$jobManager = new JobManager($storage, $queue);
+
+// 推送带状态跟踪的任务
+$jobManager->pushJob('job-1', function () {
+    return "Job completed";
+}, 'default', true);
+
+// 获取任务状态
+$jobManager->getAllJobs()->then(function ($jobs) {
+    foreach ($jobs as $jobId => $job) {
+        echo "Job ID: $jobId, Status: {$job['status']}\n";
+    }
 });
 ```
 
-## 注意事项
+### 工作进程
 
-1. 所有操作都返回 Promise 对象，需要使用 then() 方法处理结果
-2. 队列中的数据会自动进行 JSON 编码和解码
-3. 如果设置了队列前缀，实际的 Redis 键名将为 `前缀:队列名`
-4. 阻塞式出队在队列为空时会等待新数据到达，可以通过设置超时时间来避免永久等待
+支持多工作进程并行处理任务：
+
+```php
+use ReactphpX\Queue\Consumer;
+
+$consumer = new Consumer($queue);
+
+// 注册任务处理器
+$consumer->consume(function ($data) {
+    echo "Processing task: " . json_encode($data) . "\n";
+    // 处理任务逻辑
+    return true;
+});
+```
+
+### 内存队列
+
+提供基于内存的队列实现，适用于单进程场景：
+
+```php
+use ReactphpX\Queue\ArrayQueue;
+
+$queue = new ArrayQueue();
+
+$queue->enqueue('task1')->then(function () {
+    echo "Task added\n";
+});
+
+$queue->dequeue()->then(function ($data) {
+    echo "Processing: $data\n";
+});
+```
+
+## 许可证
+
+MIT License

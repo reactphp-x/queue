@@ -20,6 +20,15 @@ class JobManager {
     public function __construct(StorageDriverInterface $storage, Queue $queue) {
         $this->storage = $storage;
         $this->queue = $queue;
+        
+    }
+
+    public function startConsume(Consumer $consumer = null) 
+    {
+        if (!$consumer) {
+            $consumer = new Consumer($this->queue);
+            $consumer->consume(fn ($data) => $this->processJob($data));
+        }
     }
 
     public function initProcess($min, $max)
