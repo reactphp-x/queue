@@ -75,8 +75,8 @@ class JobManager {
                 ]), $queueName)->then(function () use ($jobId) {
                     // 返回一个新的Promise，该Promise会在任务完成或失败时resolve
                     return new \React\Promise\Promise(function ($resolve, $reject) use ($jobId) {
-                        $checkStatus = function () use ($jobId, $resolve, &$checkStatus) {
-                            $this->getJobStatus($jobId)->then(function ($status) use ($jobId, $resolve, &$checkStatus) {
+                        $checkStatus = function () use ($jobId, $resolve, $reject, &$checkStatus) {
+                            $this->getJobStatus($jobId)->then(function ($status) use ($jobId, $resolve, $reject, &$checkStatus) {
                                 if (isset($status['status'])) {
                                     if ($status['status'] === self::STATUS_COMPLETED) {
                                         $resolve(['status' => 'completed', 'job_id' => $jobId, 'result' => $status['result'] ?? null]);
@@ -86,6 +86,9 @@ class JobManager {
                                         // 如果任务还未完成，继续检查
                                         \React\Promise\Timer\sleep(0.5)->then($checkStatus);
                                     }
+                                } else {
+                                    // 如果没有找到任务状态，reject Promise
+                                    $reject(new \Exception("Job ID {$jobId} not found"));
                                 }
                             });
                         };
